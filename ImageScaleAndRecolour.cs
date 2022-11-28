@@ -22,6 +22,8 @@ public static class ImageScaleAndRecolour
     The static paletteColours below can contain any non-0 number of colours, and increasing or decreasing the colours available results in
     images of different colour depth. The project this is contained within is working to a 32 colour palette, of 8 greyscale colours
     (including black and white) and 6 colour families of 4 shades, 4 shades of red, yellow, green, teal, blue, and purple.
+
+    RowanRedPanda
     */
     private static readonly float weightAgainstGrey = 1.5f; //higher numbers weight against grey more. For colour palettes with fewer nongrey colours this number is better higher.
 
@@ -77,37 +79,43 @@ public static class ImageScaleAndRecolour
         desktop cache. It also takes a vector2 that represents the width and height that the image should be
         scaled to. This is usually given as (285,160)
         */
-        Texture2D tex = new(2, 2); //prepare a new texture2D
-        byte[] fileData; //prepare byte array
-        float scaleFactor;
-
-        fileData = File.ReadAllBytes(myPath); //read bytes of the image at the path, into the byte array
-        tex.LoadImage(fileData); //load the bytes into the texture2D, this will create a 1:1 texture representation of the image
-
-        /*
-        This if takes the texture witdh and height, and checks that against the required new scale, as provided
-        by the vector2. If the width requires a greater amount of scaling to bring in, scale on x,
-        otherwise scale on y. This will ensure that the taken image fits within the new screen parameters.
-
-        Then divide the chosen one by the scale to get the scale factor, this is the value that both dimensions
-        need to be divided by to get to the desired scale, while maintaining aspect ratio.
-        */
-        if (tex.width / scale.x > tex.height / scale.y)
+        if (File.Exists(myPath)) //check for file existing
         {
-            scaleFactor = tex.width / scale.x;
+            Texture2D tex = new(2, 2); //prepare a new texture2D
+            byte[] fileData; //prepare byte array
+            float scaleFactor;
+
+            fileData = File.ReadAllBytes(myPath); //read bytes of the image at the path, into the byte array
+            tex.LoadImage(fileData); //load the bytes into the texture2D, this will create a 1:1 texture representation of the image
+
+            /*
+            This if takes the texture witdh and height, and checks that against the required new scale, as provided
+            by the vector2. If the width requires a greater amount of scaling to bring in, scale on x,
+            otherwise scale on y. This will ensure that the taken image fits within the new screen parameters.
+
+            Then divide the chosen one by the scale to get the scale factor, this is the value that both dimensions
+            need to be divided by to get to the desired scale, while maintaining aspect ratio.
+            */
+            if (tex.width / scale.x > tex.height / scale.y)
+            {
+                scaleFactor = tex.width / scale.x;
+            }
+            else
+            {
+                scaleFactor = tex.height / scale.y;
+            }
+            /*
+            Resize the texture based on the chosen scalefactor, either x or y, and the amount it needed to scale by.
+            */
+            tex = Resize(tex, (int)Mathf.Round(tex.width / scaleFactor), (int)Mathf.Round(tex.height / scaleFactor));
+            tex.filterMode = FilterMode.Point;
+
+            return tex;
         }
         else
         {
-            scaleFactor = tex.height / scale.y;
+            return null;
         }
-        /*
-        Resize the texture based on the chosen scalefactor, either x or y, and the amount it needed to scale by.
-        */
-        tex = Resize(tex, (int)Mathf.Round(tex.width / scaleFactor), (int)Mathf.Round(tex.height / scaleFactor));
-        tex.filterMode = FilterMode.Point;
-
-
-        return tex;
     }
 
 
