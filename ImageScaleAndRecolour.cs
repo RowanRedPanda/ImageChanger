@@ -118,7 +118,6 @@ public static class ImageScaleAndRecolour
         }
     }
 
-
     public static Sprite RescaleImage(Sprite sprite, Vector2 scale)
     {
         /*
@@ -174,67 +173,67 @@ public static class ImageScaleAndRecolour
         Recolour the image to the working palette, changing out the palette would change the results here.
         This method is provided the resized texture, because the texture is already resized it is less computationally intense to recolour it.
         */
-        Color32[] fullImagePixels = tex.GetPixels32(); //create an array of every pixel in the provided texture
-        Color32[] uniquePixels = fullImagePixels.Distinct().ToArray(); //strip the array to only unique values, this ensures that pixel values aren't needlessly checked and recalculated.
+        
         Dictionary<Color32, Color32> replacementDictionary = new Dictionary<Color32, Color32>(); //prepare a blank dictionary
 
-        //for each unique pixel, this will score its closeness to a pixel in the paletteColours array
-        foreach (Color32 pixel in uniquePixels)
-        {
-            // if the pixel has a low alpha value, just set it to be transparent.
-            if (pixel.a < 128)
-            {
-                replacementDictionary.Add(pixel, new Color32(0, 0, 0, 0));
-            }
-            //if a pixel does not have a low alpha value, assume it needs to be recoloured.
-            else
-            {
-                int k = 0; //k is the index of the colour in the array paletteColours iterated within the below foreach
-                float lowestScore = 999999f; //an arbitrarily high number to start scoring from, the first checked colour will always be better than this
-                int paletteIndex = 0; //a stored value of k
-                foreach (Color32 colour in paletteColours)
-                {
-                    float weight = 1f;
-                    /*
-                    Loop through all available colours in the chosen palette, and for each one, subtract the r,g,b values from the currently being scored
-                    pixel. The aim of this loop is to get to the lowest lowestScore value, as this represents the least amount of variance across all r,g,b
-                    values.
-                    */
-
-                    //if the image pixel is a true grey, then don't weight against grey, otherwise weight against greys.
-                    if (colour.r == colour.g && colour.g == colour.b && (pixel.r != pixel.g || pixel.g != pixel.b))
-                    {
-                        weight = weightAgainstGrey;
-                    }
-
-                    float score = Vector3.Distance(new Vector3(colour.r, colour.g, colour.b), new Vector3(pixel.r, pixel.g, pixel.b)) * weight;
-                    //if the score is lower than a previously recorded score (which starts at 999999 so that there will always be something stored) then store this new score and value
-                    if (lowestScore > score)
-                    {
-                        lowestScore = score; //my current best score stored
-                        paletteIndex = k; //the index where the best score was found
-                    }
-
-                    k++; //iterate k up to track index
-                }
-                /*
-                Once the entire palette has been looped through, a best score will have been found. Add a new entry to the dictionary of the original pixel rgba values, and a corresponding
-                palette value
-                */
-                replacementDictionary.Add(pixel, paletteColours[paletteIndex]); //(original pixel value, palette value at the index of the best scored value)
-            }
-        }
         /*
-        2D for loop to iterate through every pixel of the texture and replace it with the new value. Because all the unique pixels have been scored and given a replacement value, this
-        requires no additional calculation, just a key/value return from the dictionary.
+        2D for loop to iterate through every pixel of the texture and replace it with the new value. All the unique pixels will be scored and given a replacement value, this
+        does the calculations the first time, then afterwards is just a key/value return from the dictionary.
         */
         for (int i = 0; i < tex.width; i++) //iterate through the width
         {
             for (int j = 0; j < tex.height; j++) //iterate through the height
             {
                 Color32 currentColour = tex.GetPixel(i, j); //at the co-ordinates iterated through check the pixel values of that pixel.
+                try
+                {
+                    tex.SetPixel(i, j, replacementDictionary[currentColour]); //use the checked pixel as the key to get the previously calculated replacement colour, and replace with that colour.
+                }
+                catch(KeyNotFoundException e) //if a key error is returned, the key does not exist, and one must be made
+                {
+                    // if the pixel has a low alpha value, just set it to be transparent.
+                    if (currentColour.a < 128)
+                    {
+                        replacementDictionary.Add(currentColour, new Color32(0, 0, 0, 0));
+                    }
+                    else
+                    {
+                        int k = 0; //k is the index of the colour in the array paletteColours iterated within the below foreach
+                        float lowestScore = 999999f; //an arbitrarily high number to start scoring from, the first checked colour will always be better than this
+                        int paletteIndex = 0; //a stored value of k
+                        foreach (Color32 colour in paletteColours)
+                        {
+                            float weight = 1f;
+                            /*
+                            Loop through all available colours in the chosen palette, and for each one, subtract the r,g,b values from the currently being scored
+                            pixel. The aim of this loop is to get to the lowest lowestScore value, as this represents the least amount of variance across all r,g,b
+                            values.
+                            */
 
-                tex.SetPixel(i, j, replacementDictionary[currentColour]); //use the checked pixel as the key to get the previously calculated replacement colour, and replace with that colour.
+                            //if the image pixel is a true grey, then don't weight against grey, otherwise weight against greys.
+                            if (colour.r == colour.g && colour.g == colour.b && (currentColour.r != currentColour.g || currentColour.g != currentColour.b))
+                            {
+                                weight = weightAgainstGrey;
+                            }
+
+                            float score = Vector3.Distance(new Vector3(colour.r, colour.g, colour.b), new Vector3(currentColour.r, currentColour.g, currentColour.b)) * weight;
+                            //if the score is lower than a previously recorded score (which starts at 999999 so that there will always be something stored) then store this new score and value
+                            if (lowestScore > score)
+                            {
+                                lowestScore = score; //my current best score stored
+                                paletteIndex = k; //the index where the best score was found
+                            }
+
+                            k++; //iterate k up to track index
+                        }
+                        /*
+                        Once the entire palette has been looped through, a best score will have been found. Add a new entry to the dictionary of the original pixel rgba values, and a corresponding
+                        palette value
+                        */
+                        replacementDictionary.Add(currentColour, paletteColours[paletteIndex]); //(original pixel value, palette value at the index of the best scored value)
+                    }
+                    tex.SetPixel(i, j, replacementDictionary[currentColour]); //after setting the new value to the dictionary, replace the pixel
+                }
             }
         }
         tex.Apply(); //render the new recoloured texture to store it.
